@@ -297,3 +297,25 @@ hr {
     background: #f5c842 !important;
     transform: translateY(-1px);
 }
+
+/* ── Legend box ── */
+.legend {
+    background: #13161f;
+    border: 1px solid #1e2330;
+    border-left: 3px solid #f0b429;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+    color: #94a3b8;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+}
+.legend strong { color: #e2e8f0; }
+.legend code {
+    background: #1e2330;
+    color: #a5f3c8;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78em;
+}
