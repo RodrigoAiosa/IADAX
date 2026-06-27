@@ -1,0 +1,262 @@
+/* ====================================================
+   PBIX → TMDL Generator — style.css
+   Design: dark data-tool aesthetic, monospace accent,
+   yellow/amber highlight on near-black background.
+   ==================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+/* ── Global resets ── */
+html, body, [data-testid="stAppViewContainer"] {
+    background-color: #0d0f14 !important;
+    color: #e2e8f0;
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+[data-testid="stHeader"] {
+    background: transparent !important;
+}
+
+[data-testid="stSidebar"] {
+    display: none;
+}
+
+/* ── Header ── */
+.header {
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+    border-bottom: 1px solid #1e2330;
+    margin-bottom: 2rem;
+}
+
+.header-badge {
+    display: inline-block;
+    background: #f0b429;
+    color: #0d0f14;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+}
+
+.title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 3rem !important;
+    font-weight: 600;
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin: 0 0 0.75rem !important;
+}
+
+.title .arrow {
+    color: #f0b429;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.subtitle code {
+    background: #1e2330;
+    color: #f0b429;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85em;
+}
+
+/* ── Upload section ── */
+.upload-section {
+    margin: 0 auto 2rem;
+    max-width: 600px;
+}
+
+[data-testid="stFileUploader"] {
+    background: #13161f !important;
+    border: 1.5px dashed #2d3347 !important;
+    border-radius: 8px !important;
+    padding: 2rem !important;
+    transition: border-color 0.2s;
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: #f0b429 !important;
+}
+
+[data-testid="stFileUploader"] label {
+    color: #94a3b8 !important;
+    font-size: 0.9rem;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    color: #64748b !important;
+}
+
+/* ── Stat cards ── */
+.stat-card {
+    background: #13161f;
+    border: 1px solid #1e2330;
+    border-radius: 8px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+}
+
+.stat-number {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 2rem;
+    font-weight: 600;
+    color: #f0b429;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+}
+
+.stat-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+}
+
+/* ── Results section ── */
+.results-section {
+    margin-top: 1rem;
+}
+
+/* ── Code block override ── */
+[data-testid="stCodeBlock"] {
+    background: #0a0c10 !important;
+    border: 1px solid #1e2330 !important;
+    border-radius: 6px !important;
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+[data-testid="stCodeBlock"] code {
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.78rem !important;
+    color: #a5f3c8 !important;
+}
+
+/* ── Download button ── */
+[data-testid="stDownloadButton"] button {
+    background: #f0b429 !important;
+    color: #0d0f14 !important;
+    font-weight: 600 !important;
+    font-family: 'IBM Plex Sans', sans-serif !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 0.65rem 1.5rem !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.01em;
+    margin-top: 0.75rem;
+    transition: background 0.2s, transform 0.1s;
+}
+
+[data-testid="stDownloadButton"] button:hover {
+    background: #f5c842 !important;
+    transform: translateY(-1px);
+}
+
+/* ── Instructions (empty state) ── */
+.instructions {
+    max-width: 480px;
+    margin: 1rem auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.instruction-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: #13161f;
+    border: 1px solid #1e2330;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    color: #94a3b8;
+    font-size: 0.87rem;
+    line-height: 1.5;
+}
+
+.instruction-item strong {
+    color: #e2e8f0;
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.9rem;
+}
+
+.instruction-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* ── Expander ── */
+[data-testid="stExpander"] {
+    background: #13161f !important;
+    border: 1px solid #1e2330 !important;
+    border-radius: 8px !important;
+    margin-bottom: 1.25rem;
+}
+
+[data-testid="stExpander"] summary {
+    color: #94a3b8 !important;
+    font-size: 0.87rem !important;
+}
+
+/* ── Hidden badge ── */
+.badge-hidden {
+    background: #1e2330;
+    color: #64748b;
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    vertical-align: middle;
+}
+
+/* ── Spinner ── */
+[data-testid="stSpinner"] {
+    color: #f0b429 !important;
+}
+
+/* ── Alert / error ── */
+[data-testid="stAlert"] {
+    background: #1a0f0f !important;
+    border-color: #7f1d1d !important;
+    border-radius: 6px !important;
+    color: #fca5a5 !important;
+}
+
+/* ── Heading inside main ── */
+h3 {
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #64748b !important;
+    margin: 1.5rem 0 0.5rem !important;
+}
+
+/* ── Divider inside expander ── */
+hr {
+    border-color: #1e2330 !important;
+    margin: 0.5rem 0 !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d0f14; }
+::-webkit-scrollbar-thumb { background: #2d3347; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #f0b429; }
