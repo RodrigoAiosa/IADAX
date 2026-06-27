@@ -1,57 +1,53 @@
 """
 tmdl_generator.py
 Generates a TMDL script with DAX measures based on detected numeric columns.
+Skips measures that already exist in the model.
 
-Measure templates per numeric column:
-  - Total <Column>     → SUM
-  - Média <Column>     → AVERAGE
-  - Qtd <Column>       → COUNT
-  - Máx <Column>       → MAX
-  - Mín <Column>       → MIN
-
-Format strings are inferred from column name keywords.
+Per numeric column (5 measures):
+  Total <Col>     → SUM
+  Média <Col>     → AVERAGE
+  Contagem <Col>  → COUNT
+  Máximo <Col>    → MAX
+  Mínimo <Col>    → MIN
 """
 
-from typing import Dict, List
-import re
+from typing import Dict, List, Optional
 
-# Keywords that hint at currency columns (case-insensitive)
 CURRENCY_KEYWORDS = (
     "sales", "revenue", "price", "cost", "profit", "discount",
     "gross", "cogs", "venda", "receita", "preco", "preço",
-    "custo", "lucro", "desconto", "faturamento",
+    "custo", "lucro", "desconto", "faturamento", "valor",
+    "amount", "net", "bruto", "liquido", "líquido",
 )
 
-# Keywords that hint at integer/count columns
-COUNT_KEYWORDS = (
-    "units", "qty", "quantity", "count", "num", "qtd",
-    "unidades", "quantidade", "numero", "número",
-)
+MEASURES_TABLE = "Medidas"
 
-PARTITION_M_SOURCE = (
-    'let\n'
-    '          Origem = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), '
-    'let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [#"Coluna 1" = _t]),\n'
-    '            #"Colunas Removidas" = Table.RemoveColumns(Origem,{"Coluna 1"})\n'
-    '        in\n'
-    '            #"Colunas Removidas"'
+PARTITION_SOURCE = (
+    "let\n"
+    "              Origem = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(\"i44FAA==\", BinaryEncoding.Base64), Compression.Deflate)), "
+    "let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [#\"Coluna 1\" = _t]),\n"
+    "                #\"Colunas Removidas\" = Table.RemoveColumns(Origem,{\"Coluna 1\"})\n"
+    "            in\n"
+    "                #\"Colunas Removidas\""
 )
-
-MEASURES_TABLE_NAME = "Medidas"
 
 
 class TMDLGenerator:
-    def __init__(self, tables: Dict[str, dict]):
+    def __init__(self, tables: Dict[str, dict], existing_measures: Optional[List[str]] = None):
         self.tables = tables
+        self.existing = set(existing_measures or [])
 
     def generate(self) -> str:
         measures = self._collect_measures()
 
         if not measures:
-            return "// Nenhuma medida pôde ser gerada. Verifique se o arquivo contém colunas numéricas."
+            return (
+                "// Nenhuma medida nova pôde ser gerada.\n"
+                "// Todas as medidas possíveis já existem ou não há colunas numéricas detectadas."
+            )
 
         lines = ["createOrReplace", ""]
-        lines.append(f"\ttable {MEASURES_TABLE_NAME}")
+        lines.append(f"\ttable {MEASURES_TABLE}")
         lines.append("")
 
         for m in measures:
@@ -62,11 +58,10 @@ class TMDLGenerator:
                 lines.append(f"\n\t\t\tannotation {m['annotation']}")
             lines.append("")
 
-        # Partition (required boilerplate for Measures table)
-        lines.append(f"\t\tpartition {MEASURES_TABLE_NAME} = m")
+        lines.append(f"\t\tpartition {MEASURES_TABLE} = m")
         lines.append("\t\t\tmode: import")
         lines.append("\t\t\tsource =")
-        for src_line in PARTITION_M_SOURCE.splitlines():
+        for src_line in PARTITION_SOURCE.splitlines():
             lines.append(f"\t\t\t\t\t{src_line}")
         lines.append("")
         lines.append("\t\tannotation PBI_NavigationStepName = Navegação")
@@ -82,67 +77,21 @@ class TMDLGenerator:
             if info.get("is_hidden"):
                 continue
             for col in info.get("numeric", []):
-                measures.extend(self._measures_for_column(table_name, col))
+                for m in self._measures_for(table_name, col):
+                    if m["name"] not in self.existing:
+                        measures.append(m)
         return measures
 
-    def _measures_for_column(self, table: str, col: str) -> List[dict]:
+    def _measures_for(self, table: str, col: str) -> List[dict]:
         ref = f"{table}[{col}]"
-        fmt_currency, fmt_int, fmt_decimal = self._infer_formats(col)
-        measures = []
+        is_currency = any(kw in col.lower() for kw in CURRENCY_KEYWORDS)
+        fmt = r"R$\ #,0.00;(R$\ #,0.00);R$\ #,0.00" if is_currency else "#,0.00"
+        annotation = 'PBI_FormatHint = {"currencyCulture":"pt-BR"}' if is_currency else None
 
-        # SUM
-        measures.append({
-            "name": f"Total {col}",
-            "expression": f"SUM({ref})",
-            "format": fmt_currency if fmt_currency else fmt_decimal,
-            "annotation": 'PBI_FormatHint = {"currencyCulture":"pt-BR"}' if fmt_currency else None,
-        })
-
-        # AVERAGE
-        measures.append({
-            "name": f"Média {col}",
-            "expression": f"AVERAGE({ref})",
-            "format": fmt_currency if fmt_currency else fmt_decimal,
-            "annotation": 'PBI_FormatHint = {"currencyCulture":"pt-BR"}' if fmt_currency else None,
-        })
-
-        # COUNT
-        measures.append({
-            "name": f"Contagem {col}",
-            "expression": f"COUNT({ref})",
-            "format": "#,0",
-            "annotation": None,
-        })
-
-        # MAX
-        measures.append({
-            "name": f"Máximo {col}",
-            "expression": f"MAX({ref})",
-            "format": fmt_currency if fmt_currency else fmt_decimal,
-            "annotation": 'PBI_FormatHint = {"currencyCulture":"pt-BR"}' if fmt_currency else None,
-        })
-
-        # MIN
-        measures.append({
-            "name": f"Mínimo {col}",
-            "expression": f"MIN({ref})",
-            "format": fmt_currency if fmt_currency else fmt_decimal,
-            "annotation": 'PBI_FormatHint = {"currencyCulture":"pt-BR"}' if fmt_currency else None,
-        })
-
-        return measures
-
-    def _infer_formats(self, col: str):
-        col_lower = col.lower()
-
-        is_currency = any(kw in col_lower for kw in CURRENCY_KEYWORDS)
-        is_count = any(kw in col_lower for kw in COUNT_KEYWORDS)
-
-        fmt_currency = None
-        fmt_int = "#,0"
-        fmt_decimal = "#,0.00"
-
-        if is_currency:
-            fmt_currency = r'R$\ #,0.00;(R$\ #,0.00);R$\ #,0.00'
-
-        return fmt_currency, fmt_int, fmt_decimal
+        return [
+            {"name": f"Total {col}",    "expression": f"SUM({ref})",          "format": fmt,   "annotation": annotation},
+            {"name": f"Média {col}",    "expression": f"AVERAGE({ref})",       "format": fmt,   "annotation": annotation},
+            {"name": f"Contagem {col}", "expression": f"COUNT({ref})",         "format": "#,0", "annotation": None},
+            {"name": f"Máximo {col}",   "expression": f"MAX({ref})",           "format": fmt,   "annotation": annotation},
+            {"name": f"Mínimo {col}",   "expression": f"MIN({ref})",           "format": fmt,   "annotation": annotation},
+        ]

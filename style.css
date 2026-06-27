@@ -260,3 +260,40 @@ hr {
 ::-webkit-scrollbar-track { background: #0d0f14; }
 ::-webkit-scrollbar-thumb { background: #2d3347; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #f0b429; }
+
+/* ── Upload labels ── */
+.upload-label {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.upload-label code {
+    background: #1e2330;
+    color: #f0b429;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8em;
+}
+
+.required { color: #f87171; margin-left: 2px; }
+.optional { color: #64748b; font-size: 0.75em; }
+
+/* ── Primary button ── */
+[data-testid="stButton"] button[kind="primary"] {
+    background: #f0b429 !important;
+    color: #0d0f14 !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.95rem !important;
+    padding: 0.65rem 1.5rem !important;
+    transition: background 0.2s, transform 0.1s;
+}
+
+[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #f5c842 !important;
+    transform: translateY(-1px);
+}
