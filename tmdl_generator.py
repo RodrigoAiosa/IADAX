@@ -206,6 +206,14 @@ class TMDLGenerator:
         pct_fmt = '"0.00%"'
         base_ref = f"[Total {col}]"
 
+        # TMDL multiline format: expression on next line, indented with \t\t\t\t
+        # measure 'Name' =
+        #     CALCULATE(
+        #         [Base],
+        #         FILTER(...)
+        #     )
+        # Properties (formatString, annotation) go at \t\t\t level
+
         return [
             {
                 "name": f"YTD {col}",
@@ -215,10 +223,10 @@ class TMDLGenerator:
             {
                 "name": f"YTD {col} Ano Anterior",
                 "expression": (
-                    f"CALCULATE(\n"
-                    f"\t\t\t\tTOTALYTD({base_ref}, {dt}),\n"
-                    f"\t\t\t\tSAMEPERIODLASTYEAR({dt})\n"
-                    f"\t\t\t)"
+                    "\n\t\t\t\tCALCULATE(\n"
+                    f"\t\t\t\t\tTOTALYTD({base_ref}, {dt}),\n"
+                    f"\t\t\t\t\tSAMEPERIODLASTYEAR({dt})\n"
+                    "\t\t\t\t)"
                 ),
                 "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
@@ -235,66 +243,70 @@ class TMDLGenerator:
             {
                 "name": f"{col} Mês Anterior",
                 "expression": (
-                    f"CALCULATE(\n"
-                    f"\t\t\t\t{base_ref},\n"
-                    f"\t\t\t\tDATEADD({dt}, -1, MONTH)\n"
-                    f"\t\t\t)"
+                    "\n\t\t\t\tCALCULATE(\n"
+                    f"\t\t\t\t\t{base_ref},\n"
+                    f"\t\t\t\t\tDATEADD({dt}, -1, MONTH)\n"
+                    "\t\t\t\t)"
                 ),
                 "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"{col} Ano Anterior",
                 "expression": (
-                    f"CALCULATE(\n"
-                    f"\t\t\t\t{base_ref},\n"
-                    f"\t\t\t\tSAMEPERIODLASTYEAR({dt})\n"
-                    f"\t\t\t)"
+                    "\n\t\t\t\tCALCULATE(\n"
+                    f"\t\t\t\t\t{base_ref},\n"
+                    f"\t\t\t\t\tSAMEPERIODLASTYEAR({dt})\n"
+                    "\t\t\t\t)"
                 ),
                 "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"Var YoY {col}",
                 "expression": (
-                    f"VAR _atual = {base_ref}\n"
-                    f"\t\t\tVAR _anterior = CALCULATE({base_ref}, SAMEPERIODLASTYEAR({dt}))\n"
-                    f"\t\t\tRETURN\n"
-                    f"\t\t\t\tIF(NOT ISBLANK(_anterior), _atual - _anterior)"
+                    "\n"
+                    f"\t\t\t\tVAR _atual = {base_ref}\n"
+                    f"\t\t\t\tVAR _anterior = CALCULATE({base_ref}, SAMEPERIODLASTYEAR({dt}))\n"
+                    "\t\t\t\tRETURN\n"
+                    "\t\t\t\t\tIF(NOT ISBLANK(_anterior), _atual - _anterior)"
                 ),
                 "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"% YoY {col}",
                 "expression": (
-                    f"VAR _atual = {base_ref}\n"
-                    f"\t\t\tVAR _anterior = CALCULATE({base_ref}, SAMEPERIODLASTYEAR({dt}))\n"
-                    f"\t\t\tRETURN\n"
-                    f"\t\t\t\tIF(\n"
-                    f"\t\t\t\t\tNOT ISBLANK(_anterior) && _anterior <> 0,\n"
-                    f"\t\t\t\t\tDIVIDE(_atual - _anterior, _anterior)\n"
-                    f"\t\t\t\t)"
+                    "\n"
+                    f"\t\t\t\tVAR _atual = {base_ref}\n"
+                    f"\t\t\t\tVAR _anterior = CALCULATE({base_ref}, SAMEPERIODLASTYEAR({dt}))\n"
+                    "\t\t\t\tRETURN\n"
+                    "\t\t\t\t\tIF(\n"
+                    "\t\t\t\t\t\tNOT ISBLANK(_anterior) && _anterior <> 0,\n"
+                    "\t\t\t\t\t\tDIVIDE(_atual - _anterior, _anterior)\n"
+                    "\t\t\t\t\t)"
                 ),
                 "format": pct_fmt, "annotation": None, "is_currency": False, "single_line": False,
             },
             {
                 "name": f"Var MoM {col}",
                 "expression": (
-                    f"VAR _atual = {base_ref}\n"
-                    f"\t\t\tVAR _anterior = CALCULATE({base_ref}, DATEADD({dt}, -1, MONTH))\n"
-                    f"\t\t\tRETURN\n"
-                    f"\t\t\t\tIF(NOT ISBLANK(_anterior), _atual - _anterior)"
+                    "\n"
+                    f"\t\t\t\tVAR _atual = {base_ref}\n"
+                    f"\t\t\t\tVAR _anterior = CALCULATE({base_ref}, DATEADD({dt}, -1, MONTH))\n"
+                    "\t\t\t\tRETURN\n"
+                    "\t\t\t\t\tIF(NOT ISBLANK(_anterior), _atual - _anterior)"
                 ),
                 "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"% MoM {col}",
                 "expression": (
-                    f"VAR _atual = {base_ref}\n"
-                    f"\t\t\tVAR _anterior = CALCULATE({base_ref}, DATEADD({dt}, -1, MONTH))\n"
-                    f"\t\t\tRETURN\n"
-                    f"\t\t\t\tIF(\n"
-                    f"\t\t\t\t\tNOT ISBLANK(_anterior) && _anterior <> 0,\n"
-                    f"\t\t\t\t\tDIVIDE(_atual - _anterior, _anterior)\n"
-                    f"\t\t\t\t)"
+                    "\n"
+                    f"\t\t\t\tVAR _atual = {base_ref}\n"
+                    f"\t\t\t\tVAR _anterior = CALCULATE({base_ref}, DATEADD({dt}, -1, MONTH))\n"
+                    "\t\t\t\tRETURN\n"
+                    "\t\t\t\t\tIF(\n"
+                    "\t\t\t\t\t\tNOT ISBLANK(_anterior) && _anterior <> 0,\n"
+                    "\t\t\t\t\t\tDIVIDE(_atual - _anterior, _anterior)\n"
+                    "\t\t\t\t\t)"
                 ),
                 "format": pct_fmt, "annotation": None, "is_currency": False, "single_line": False,
             },
@@ -310,16 +322,15 @@ class TMDLGenerator:
         ann = measure.get("annotation")
         single_line = measure.get("single_line", False)
 
-        expr_lines = expr.split('\n')
-        if single_line or len(expr_lines) == 1:
-            lines.append(f"\t\tmeasure '{name}' = {expr}")
+        if single_line or "\n" not in expr:
+            # Single-line: measure 'Name' = EXPRESSION
+            lines.append(f"\t\tmeasure '{name}' = {expr.strip()}")
         else:
-            lines.append(f"\t\tmeasure '{name}' = {expr_lines[0]}")
-            for line in expr_lines[1:]:
-                lines.append(f"\t\t\t{line}")
+            # Multiline: measure 'Name' =
+            #     (expression already contains leading \n and correct tabs)
+            lines.append(f"\t\tmeasure '{name}' ={expr}")
 
         if fmt:
-            # Strip outer quotes if already quoted, then re-quote consistently
             clean_fmt = fmt.strip('"')
             lines.append(f'\t\t\tformatString: "{clean_fmt}"')
 
