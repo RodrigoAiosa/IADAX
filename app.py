@@ -1,12 +1,14 @@
 import io
+import os
 import streamlit as st
 import pandas as pd
 
 from pbix_parser import PBIXParser
 from tmdl_generator import TMDLGenerator
+from ai_suggester import get_ai_measures
 
 st.set_page_config(
-    page_title="PBIX → TMDL Generator",
+    page_title="IADAX — Gerador de Medidas DAX",
     page_icon="⚡",
     layout="centered",
 )
@@ -17,11 +19,11 @@ with open("style.css") as f:
 # ── Header ───────────────────────────────────────────────────────────
 st.markdown("""
 <div class="header">
-    <div class="header-badge">Power BI</div>
-    <h1 class="title">PBIX <span class="arrow">→</span> TMDL</h1>
+    <div class="header-badge">Power BI · DAX · TMDL</div>
+    <h1 class="title">IA<span class="arrow">DAX</span></h1>
     <p class="subtitle">
-        Carregue seu <code>.pbix</code> e uma amostra dos dados para gerar
-        medidas DAX completas — incluindo YTD, MTD, QTD, YoY, MoM e mais.
+        Carregue seu <code>.pbix</code> e gere automaticamente todas as medidas DAX —
+        YTD, MTD, QTD, YoY, MoM e medidas contextuais sugeridas por IA.
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -34,7 +36,7 @@ with col_a:
     pbix_file = st.file_uploader("pbix", type=["pbix"], label_visibility="collapsed", key="pbix_upload")
 
 with col_b:
-    st.markdown('<p class="upload-label">📊 Amostra de dados <code>.csv</code> / <code>.xlsx</code> <span class="required">*</span></p>', unsafe_allow_html=True)
+    st.markdown('<p class="upload-label">📊 Amostra de dados <code>.csv</code> / <code>.xlsx</code> <span class="optional">(opcional)</span></p>', unsafe_allow_html=True)
     data_file = st.file_uploader("csv_excel", type=["csv", "xlsx", "xls"], label_visibility="collapsed", key="data_upload")
 
 # ── Config ───────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@ with st.expander("⚙️ Configurações avançadas"):
         csv_table_name = st.text_input(
             "Nome da tabela no modelo",
             value="fVendas",
-            help="Como a tabela aparece no Power BI. Usado nas expressões DAX: SUM(fVendas[Sales])"
+            help="Como a tabela aparece no Power BI. Ex: fVendas"
         )
     with col_d:
         date_table = st.text_input(
@@ -52,126 +54,200 @@ with st.expander("⚙️ Configurações avançadas"):
             value="dCalendario",
             help="Nome da tabela calendário para medidas temporais"
         )
-    date_col = st.text_input(
-        "Coluna de data",
-        value="Data",
-        help="Coluna Date da tabela calendário. Ex: Data, Date, Fecha"
-    )
+    col_e, col_f = st.columns(2)
+    with col_e:
+        date_col = st.text_input(
+            "Coluna de data",
+            value="Data",
+            help="Coluna Date da tabela calendário. Ex: Data, Date, Fecha"
+        )
+    with col_f:
+        measures_table = st.text_input(
+            "Tabela de medidas",
+            value="Medidas",
+            help="Nome da tabela onde as medidas serão criadas no TMDL"
+        )
     st.markdown("---")
-    gen_time = st.toggle("Gerar medidas de inteligência temporal", value=True,
-                          help="YTD, MTD, QTD, YoY, MoM, Mês Anterior, Ano Anterior")
+    col_g, col_h = st.columns(2)
+    with col_g:
+        gen_time = st.toggle("Medidas de inteligência temporal", value=True,
+                              help="YTD, MTD, QTD, YoY, MoM, Mês Anterior, Ano Anterior")
+    with col_h:
+        use_ai = st.toggle("Sugestões extras por IA", value=False,
+                            help="Usa o Claude para sugerir medidas contextuais adicionais")
 
-with st.expander("ℹ️ Por que preciso do CSV?"):
+    if use_ai:
+        api_key_input = st.text_input(
+            "Chave API Anthropic",
+            type="password",
+            value=os.environ.get("ANTHROPIC_API_KEY", ""),
+            help="Necessária para medidas sugeridas por IA. Obtenha em console.anthropic.com",
+            placeholder="sk-ant-..."
+        )
+    else:
+        api_key_input = ""
+
+with st.expander("ℹ️ Como funciona"):
     st.markdown("""
-O modelo de dados do `.pbix` usa compressão proprietária **XPress9** da Microsoft,
-incompatível com Python 3.14 (versão usada no Streamlit Cloud).
+O **IADAX** analisa seu `.pbix` e gera automaticamente medidas DAX prontas para importar no Power BI.
 
-**Solução:** exporte uma amostra da sua tabela fato diretamente do Power BI:
+**O que é extraído do `.pbix`:**
+- Tabelas e colunas (via `DataModelSchema` e `TMDLScripts`)
+- Medidas já existentes (para não duplicar)
 
-1. Abra o relatório → selecione a tabela no painel *Dados*
-2. Botão direito → **Exportar dados** → CSV
-3. Faça upload aqui e informe o nome exato da tabela (ex: `fVendas`)
+**Se o CSV/Excel for enviado:** as colunas dessa tabela são classificadas com mais precisão (numérico, data, texto), especialmente em arquivos com compressão XPress9.
 
-A ferramenta detecta automaticamente quais colunas são numéricas e gera
-**15 medidas por coluna**: 5 base + 10 temporais.
+**Medidas geradas por coluna numérica:**
+- Base: `Total`, `Média`, `Contagem`, `Máximo`, `Mínimo`
+- Temporais: `YTD`, `YTD Ano Anterior`, `MTD`, `QTD`, `Mês Anterior`, `Ano Anterior`, `Var YoY`, `% YoY`, `Var MoM`, `% MoM`
+
+**Com IA ativada:** o Claude analisa o contexto do modelo e sugere medidas adicionais como rankings, proporções, contagens distintas e KPIs de negócio.
 """)
 
 # ── Generate ─────────────────────────────────────────────────────────
 st.markdown("<div style='margin-top:0.25rem'></div>", unsafe_allow_html=True)
 
-if pbix_file and data_file:
-    if st.button("⚡ Gerar script TMDL", use_container_width=True, type="primary"):
-        with st.spinner("Analisando e gerando medidas..."):
-            try:
-                # Parse .pbix
-                parser = PBIXParser(pbix_file.read())
-                tables = parser.get_tables()
-                existing = parser.get_existing_measures()
+can_generate = pbix_file is not None
+if st.button("⚡ Gerar script TMDL", use_container_width=True, type="primary", disabled=not can_generate):
+    with st.spinner("Analisando e gerando medidas..."):
+        try:
+            # ── Parse .pbix ──
+            parser = PBIXParser(pbix_file.read())
+            tables = parser.get_tables()
+            existing = parser.get_existing_measures()
+            parse_sources = parser.get_parse_sources()
 
-                # Load CSV / Excel
+            # ── Enrich from CSV/Excel (optional) ──
+            if data_file:
                 tname = (csv_table_name or "").strip() or data_file.name.rsplit(".", 1)[0]
                 ext = data_file.name.rsplit(".", 1)[-1].lower()
                 df = pd.read_csv(data_file) if ext == "csv" else pd.read_excel(data_file)
                 parser.enrich_from_dataframe(tname, df)
-                tables = parser._tables  # use enriched dict directly
+                tables = parser._tables
 
-                SKIP = {"Medidas", "Measures", "_Measures"}
-                active = {k: v for k, v in tables.items()
-                          if not v.get("is_hidden") and k not in SKIP}
+            SKIP = {"Medidas", "Measures", "_Measures", measures_table}
+            active = {k: v for k, v in tables.items()
+                      if not v.get("is_hidden") and k not in SKIP}
 
-                if not active or all(not v["numeric"] for v in active.values()):
-                    st.warning("Nenhuma coluna numérica detectada. Verifique o CSV enviado.")
-                    st.stop()
+            if not active:
+                st.warning("Nenhuma tabela de dados encontrada no arquivo. Envie também um CSV/Excel para enriquecer a detecção.")
+                st.stop()
 
-                # Stats
-                numeric_total = sum(len(v["numeric"]) for v in active.values())
-                measures_per_col = 15 if gen_time else 5
-                # Subtract cols that will be skipped for time (month number, year, etc.)
-                skip_time_kws = ("month number", "year", "month name")
-                time_skipped = sum(
-                    1 for v in active.values()
-                    for c in v["numeric"]
-                    if any(kw == c.lower() for kw in ("month number", "year", "month name"))
-                )
-                estimated = numeric_total * 5 + (numeric_total - time_skipped) * 10 if gen_time else numeric_total * 5
-                new_measures = max(0, estimated - len(existing))
+            has_numerics = any(v["numeric"] for v in active.values())
+            if not has_numerics:
+                st.warning("Nenhuma coluna numérica detectada. Envie também um CSV/Excel da sua tabela fato para detectar as colunas corretamente.")
 
-                c1, c2, c3 = st.columns(3)
-                c1.markdown(f'<div class="stat-card"><div class="stat-number">{numeric_total}</div><div class="stat-label">Colunas Numéricas</div></div>', unsafe_allow_html=True)
-                c2.markdown(f'<div class="stat-card"><div class="stat-number">{new_measures}</div><div class="stat-label">Medidas Geradas</div></div>', unsafe_allow_html=True)
-                c3.markdown(f'<div class="stat-card"><div class="stat-number">{len(existing)}</div><div class="stat-label">Já Existiam</div></div>', unsafe_allow_html=True)
+            # ── AI suggestions (optional) ──
+            ai_measures = []
+            if use_ai and api_key_input:
+                with st.spinner("🤖 Consultando IA para sugestões adicionais..."):
+                    ai_measures = get_ai_measures(
+                        api_key=api_key_input,
+                        tables=active,
+                        existing_measures=existing,
+                        date_table=date_table,
+                        date_column=date_col,
+                        file_name=pbix_file.name,
+                    )
+            elif use_ai and not api_key_input:
+                st.warning("⚠️ Chave API não fornecida. Sugestões de IA serão ignoradas.")
 
-                st.markdown("<div style='margin-top:1rem'></div>", unsafe_allow_html=True)
+            # ── Stats ──
+            numeric_total = sum(len(v["numeric"]) for v in active.values())
+            skip_time_kws = ("month number", "year", "month name")
+            time_skipped = sum(
+                1 for v in active.values()
+                for c in v["numeric"]
+                if any(kw == c.lower() for kw in skip_time_kws)
+            )
+            base_count = numeric_total * 5
+            time_count = (numeric_total - time_skipped) * 10 if gen_time else 0
+            estimated = base_count + time_count + len(ai_measures)
+            new_measures = max(0, estimated - len(existing))
 
-                with st.expander("📋 Colunas detectadas por tabela"):
-                    for tname_k, info in active.items():
-                        if info["numeric"]:
-                            st.markdown(f"**{tname_k}**")
-                            st.markdown("Numéricas: " + ", ".join(f"`{c}`" for c in info["numeric"]))
-                            if info["text"]:
-                                st.markdown("Texto: " + ", ".join(f"`{c}`" for c in info["text"]))
-                            if info["date"]:
-                                st.markdown("Data: " + ", ".join(f"`{c}`" for c in info["date"]))
-                            st.markdown("---")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.markdown(f'<div class="stat-card"><div class="stat-number">{len(active)}</div><div class="stat-label">Tabelas</div></div>', unsafe_allow_html=True)
+            c2.markdown(f'<div class="stat-card"><div class="stat-number">{numeric_total}</div><div class="stat-label">Cols Numéricas</div></div>', unsafe_allow_html=True)
+            c3.markdown(f'<div class="stat-card"><div class="stat-number">{new_measures}</div><div class="stat-label">Medidas Geradas</div></div>', unsafe_allow_html=True)
+            c4.markdown(f'<div class="stat-card"><div class="stat-number">{len(existing)}</div><div class="stat-label">Já Existiam</div></div>', unsafe_allow_html=True)
 
-                if gen_time:
-                    st.markdown("""
-<div class="legend">
-<strong>Medidas geradas por coluna numérica de negócio:</strong><br>
-Base: <code>Total</code> · <code>Média</code> · <code>Contagem</code> · <code>Máximo</code> · <code>Mínimo</code><br>
-Temporais: <code>YTD</code> · <code>YTD Ano Anterior</code> · <code>MTD</code> · <code>QTD</code> · <code>Mês Anterior</code> · <code>Ano Anterior</code> · <code>Var YoY</code> · <code>% YoY</code> · <code>Var MoM</code> · <code>% MoM</code>
-</div>
-""", unsafe_allow_html=True)
-
-                # Generate
-                generator = TMDLGenerator(
-                    active, existing,
-                    date_table=date_table,
-                    date_column=date_col,
-                )
-                if not gen_time:
-                    generator._time_measures = lambda t, c: []
-
-                tmdl_script = generator.generate()
-
-                st.markdown("### Script TMDL Gerado")
-                st.code(tmdl_script, language="sql")
-
-                st.download_button(
-                    label="⬇️ Baixar medidas_geradas.tmdl",
-                    data=tmdl_script.encode("utf-8"),
-                    file_name="medidas_geradas.tmdl",
-                    mime="text/plain",
-                    use_container_width=True,
+            if parse_sources:
+                st.markdown(
+                    f'<p style="font-size:0.75rem;color:#64748b;text-align:center;margin-top:0.5rem">'
+                    f'Fontes detectadas: {" · ".join(parse_sources)}</p>',
+                    unsafe_allow_html=True
                 )
 
-            except Exception as e:
-                st.error(f"Erro: {e}")
-                st.exception(e)
+            st.markdown("<div style='margin-top:1rem'></div>", unsafe_allow_html=True)
 
-elif pbix_file and not data_file:
-    st.info("📊 Envie também uma amostra CSV/Excel da sua tabela fato para detectar todas as colunas numéricas.")
-else:
+            # ── Detected columns expander ──
+            with st.expander("📋 Colunas detectadas por tabela"):
+                for tname_k, info in active.items():
+                    parts = []
+                    if info["numeric"]:
+                        parts.append("**Numéricas:** " + ", ".join(f"`{c}`" for c in info["numeric"]))
+                    if info["text"]:
+                        parts.append("**Texto:** " + ", ".join(f"`{c}`" for c in info["text"]))
+                    if info["date"]:
+                        parts.append("**Data:** " + ", ".join(f"`{c}`" for c in info["date"]))
+                    if parts:
+                        st.markdown(f"**{tname_k}**")
+                        for p in parts:
+                            st.markdown(p)
+                        st.markdown("---")
+
+            # ── AI measures expander ──
+            if ai_measures:
+                with st.expander(f"🤖 {len(ai_measures)} medidas sugeridas pela IA"):
+                    for m in ai_measures:
+                        st.markdown(f"**{m['name']}**")
+                        if m.get("description"):
+                            st.caption(m["description"])
+                        st.code(f"= {m['expression']}", language="sql")
+                        st.markdown("---")
+
+            # ── Legend ──
+            legend_parts = ["Base: `Total` · `Média` · `Contagem` · `Máximo` · `Mínimo`"]
+            if gen_time:
+                legend_parts.append("Temporais: `YTD` · `YTD Ano Anterior` · `MTD` · `QTD` · `Mês Anterior` · `Ano Anterior` · `Var YoY` · `% YoY` · `Var MoM` · `% MoM`")
+            if ai_measures:
+                legend_parts.append(f"IA: {len(ai_measures)} medidas contextuais adicionais")
+
+            st.markdown(
+                '<div class="legend"><strong>Medidas geradas por coluna numérica:</strong><br>'
+                + "<br>".join(legend_parts)
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+
+            # ── Generate TMDL ──
+            generator = TMDLGenerator(
+                tables=active,
+                existing_measures=existing,
+                date_table=date_table,
+                date_column=date_col,
+                gen_time=gen_time,
+                measures_table_name=measures_table or "Medidas",
+                ai_measures=ai_measures,
+            )
+            tmdl_script = generator.generate()
+
+            st.markdown("### Script TMDL Gerado")
+            st.code(tmdl_script, language="sql")
+
+            st.download_button(
+                label="⬇️ Baixar medidas_geradas.tmdl",
+                data=tmdl_script.encode("utf-8"),
+                file_name="medidas_geradas.tmdl",
+                mime="text/plain",
+                use_container_width=True,
+            )
+
+        except Exception as e:
+            st.error(f"Erro ao processar o arquivo: {e}")
+            st.exception(e)
+
+elif not pbix_file:
     st.markdown("""
     <div class="instructions">
         <div class="instruction-item">
@@ -180,11 +256,11 @@ else:
         </div>
         <div class="instruction-item">
             <span class="instruction-icon">📊</span>
-            <div><strong>2. Exporte e envie o CSV da tabela fato</strong><br>No Power BI: botão direito na tabela → Exportar dados</div>
+            <div><strong>2. (Opcional) Envie o CSV da tabela fato</strong><br>Melhora a detecção de colunas numéricas em arquivos com compressão XPress9</div>
         </div>
         <div class="instruction-item">
             <span class="instruction-icon">⚙️</span>
-            <div><strong>3. Ajuste as configurações se necessário</strong><br>Nome da tabela, tabela de datas, coluna de data</div>
+            <div><strong>3. Ajuste as configurações</strong><br>Nome da tabela, tabela de datas, coluna de data, medidas por IA</div>
         </div>
         <div class="instruction-item">
             <span class="instruction-icon">📄</span>

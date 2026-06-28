@@ -1,5 +1,5 @@
 /* ====================================================
-   PBIX → TMDL Generator — style.css
+   IADAX — style.css
    Design: dark data-tool aesthetic, monospace accent,
    yellow/amber highlight on near-black background.
    ==================================================== */
@@ -13,13 +13,8 @@ html, body, [data-testid="stAppViewContainer"] {
     font-family: 'IBM Plex Sans', sans-serif;
 }
 
-[data-testid="stHeader"] {
-    background: transparent !important;
-}
-
-[data-testid="stSidebar"] {
-    display: none;
-}
+[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stSidebar"] { display: none; }
 
 /* ── Header ── */
 .header {
@@ -31,21 +26,22 @@ html, body, [data-testid="stAppViewContainer"] {
 
 .header-badge {
     display: inline-block;
-    background: #f0b429;
-    color: #0d0f14;
+    background: #1e2330;
+    color: #64748b;
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    padding: 3px 10px;
+    padding: 3px 12px;
     border-radius: 2px;
     margin-bottom: 1rem;
+    border: 1px solid #2d3347;
 }
 
 .title {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 3rem !important;
+    font-size: 3.5rem !important;
     font-weight: 600;
     color: #f8fafc;
     letter-spacing: -0.02em;
@@ -53,14 +49,12 @@ html, body, [data-testid="stAppViewContainer"] {
     margin: 0 0 0.75rem !important;
 }
 
-.title .arrow {
-    color: #f0b429;
-}
+.title .arrow { color: #f0b429; }
 
 .subtitle {
     color: #64748b;
     font-size: 0.95rem;
-    max-width: 520px;
+    max-width: 540px;
     margin: 0 auto;
     line-height: 1.6;
 }
@@ -74,45 +68,31 @@ html, body, [data-testid="stAppViewContainer"] {
     font-size: 0.85em;
 }
 
-/* ── Upload section ── */
-.upload-section {
-    margin: 0 auto 2rem;
-    max-width: 600px;
-}
-
+/* ── File uploader ── */
 [data-testid="stFileUploader"] {
     background: #13161f !important;
     border: 1.5px dashed #2d3347 !important;
     border-radius: 8px !important;
-    padding: 2rem !important;
+    padding: 1.5rem !important;
     transition: border-color 0.2s;
 }
 
-[data-testid="stFileUploader"]:hover {
-    border-color: #f0b429 !important;
-}
-
-[data-testid="stFileUploader"] label {
-    color: #94a3b8 !important;
-    font-size: 0.9rem;
-}
-
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    color: #64748b !important;
-}
+[data-testid="stFileUploader"]:hover { border-color: #f0b429 !important; }
+[data-testid="stFileUploader"] label { color: #94a3b8 !important; font-size: 0.9rem; }
+[data-testid="stFileUploaderDropzoneInstructions"] { color: #64748b !important; }
 
 /* ── Stat cards ── */
 .stat-card {
     background: #13161f;
     border: 1px solid #1e2330;
     border-radius: 8px;
-    padding: 1.25rem 1rem;
+    padding: 1.1rem 0.75rem;
     text-align: center;
 }
 
 .stat-number {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 2rem;
+    font-size: 1.9rem;
     font-weight: 600;
     color: #f0b429;
     line-height: 1;
@@ -120,23 +100,18 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 
 .stat-label {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: #64748b;
 }
 
-/* ── Results section ── */
-.results-section {
-    margin-top: 1rem;
-}
-
-/* ── Code block override ── */
+/* ── Code block ── */
 [data-testid="stCodeBlock"] {
     background: #0a0c10 !important;
     border: 1px solid #1e2330 !important;
     border-radius: 6px !important;
-    max-height: 480px;
+    max-height: 520px;
     overflow-y: auto;
 }
 
@@ -166,39 +141,27 @@ html, body, [data-testid="stAppViewContainer"] {
     transform: translateY(-1px);
 }
 
-/* ── Instructions (empty state) ── */
-.instructions {
-    max-width: 480px;
-    margin: 1rem auto 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+/* ── Primary button ── */
+[data-testid="stButton"] button[kind="primary"] {
+    background: #f0b429 !important;
+    color: #0d0f14 !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.95rem !important;
+    padding: 0.65rem 1.5rem !important;
+    transition: background 0.2s, transform 0.1s;
 }
 
-.instruction-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    background: #13161f;
-    border: 1px solid #1e2330;
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    color: #94a3b8;
-    font-size: 0.87rem;
-    line-height: 1.5;
+[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #f5c842 !important;
+    transform: translateY(-1px);
 }
 
-.instruction-item strong {
-    color: #e2e8f0;
-    display: block;
-    margin-bottom: 2px;
-    font-size: 0.9rem;
-}
-
-.instruction-icon {
-    font-size: 1.4rem;
-    flex-shrink: 0;
-    margin-top: 2px;
+[data-testid="stButton"] button:disabled {
+    background: #1e2330 !important;
+    color: #4a5568 !important;
+    cursor: not-allowed !important;
 }
 
 /* ── Expander ── */
@@ -209,27 +172,10 @@ html, body, [data-testid="stAppViewContainer"] {
     margin-bottom: 1.25rem;
 }
 
-[data-testid="stExpander"] summary {
-    color: #94a3b8 !important;
-    font-size: 0.87rem !important;
-}
-
-/* ── Hidden badge ── */
-.badge-hidden {
-    background: #1e2330;
-    color: #64748b;
-    font-size: 0.65rem;
-    padding: 1px 6px;
-    border-radius: 3px;
-    margin-left: 6px;
-    font-family: 'IBM Plex Mono', monospace;
-    vertical-align: middle;
-}
+[data-testid="stExpander"] summary { color: #94a3b8 !important; font-size: 0.87rem !important; }
 
 /* ── Spinner ── */
-[data-testid="stSpinner"] {
-    color: #f0b429 !important;
-}
+[data-testid="stSpinner"] { color: #f0b429 !important; }
 
 /* ── Alert / error ── */
 [data-testid="stAlert"] {
@@ -239,27 +185,50 @@ html, body, [data-testid="stAppViewContainer"] {
     color: #fca5a5 !important;
 }
 
-/* ── Heading inside main ── */
-h3 {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-size: 0.85rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-    color: #64748b !important;
-    margin: 1.5rem 0 0.5rem !important;
+/* ── Warning ── */
+[data-testid="stAlert"][data-baseweb="notification"] {
+    background: #1a1500 !important;
+    border-color: #7f6000 !important;
+    color: #fcd34d !important;
 }
 
-/* ── Divider inside expander ── */
-hr {
-    border-color: #1e2330 !important;
-    margin: 0.5rem 0 !important;
+/* ── Instructions (empty state) ── */
+.instructions {
+    max-width: 500px;
+    margin: 1.5rem auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0d0f14; }
-::-webkit-scrollbar-thumb { background: #2d3347; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #f0b429; }
+.instruction-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: #13161f;
+    border: 1px solid #1e2330;
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    color: #94a3b8;
+    font-size: 0.87rem;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+}
+
+.instruction-item:hover { border-color: #2d3347; }
+
+.instruction-item strong {
+    color: #e2e8f0;
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.9rem;
+}
+
+.instruction-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
 
 /* ── Upload labels ── */
 .upload-label {
@@ -281,23 +250,6 @@ hr {
 .required { color: #f87171; margin-left: 2px; }
 .optional { color: #64748b; font-size: 0.75em; }
 
-/* ── Primary button ── */
-[data-testid="stButton"] button[kind="primary"] {
-    background: #f0b429 !important;
-    color: #0d0f14 !important;
-    font-weight: 600 !important;
-    border: none !important;
-    border-radius: 6px !important;
-    font-size: 0.95rem !important;
-    padding: 0.65rem 1.5rem !important;
-    transition: background 0.2s, transform 0.1s;
-}
-
-[data-testid="stButton"] button[kind="primary"]:hover {
-    background: #f5c842 !important;
-    transform: translateY(-1px);
-}
-
 /* ── Legend box ── */
 .legend {
     background: #13161f;
@@ -307,10 +259,12 @@ hr {
     padding: 0.85rem 1rem;
     font-size: 0.82rem;
     color: #94a3b8;
-    line-height: 1.7;
+    line-height: 1.8;
     margin-bottom: 1rem;
 }
+
 .legend strong { color: #e2e8f0; }
+
 .legend code {
     background: #1e2330;
     color: #a5f3c8;
@@ -319,3 +273,38 @@ hr {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.78em;
 }
+
+/* ── Heading inside main ── */
+h3 {
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.82rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: #64748b !important;
+    margin: 1.5rem 0 0.5rem !important;
+}
+
+/* ── Divider ── */
+hr { border-color: #1e2330 !important; margin: 0.5rem 0 !important; }
+
+/* ── Toggle ── */
+[data-testid="stToggle"] label { color: #94a3b8 !important; font-size: 0.87rem !important; }
+
+/* ── Text input ── */
+[data-testid="stTextInput"] input {
+    background: #13161f !important;
+    border: 1px solid #2d3347 !important;
+    border-radius: 6px !important;
+    color: #e2e8f0 !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.85rem !important;
+}
+
+[data-testid="stTextInput"] input:focus { border-color: #f0b429 !important; }
+[data-testid="stTextInput"] label { color: #94a3b8 !important; font-size: 0.82rem !important; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d0f14; }
+::-webkit-scrollbar-thumb { background: #2d3347; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #f0b429; }

@@ -21,7 +21,7 @@ CURRENCY_KEYWORDS = (
     "amount", "net", "bruto", "liquido", "líquido",
 )
 
-# Columns that are IDs or calendar-only — skip time intelligence for these
+# Columns that are IDs or calendar-only — skip time intelligence
 SKIP_TIME_KEYWORDS = (
     "month number", "year", "month name", "mes", "ano",
     "id", "rank", "order", "num", "numero", "número",
@@ -46,6 +46,18 @@ PARTITION_SOURCE = (
     '            #"Colunas Removidas"'
 )
 
+# Ordered group names for display
+GROUP_ORDER = [
+    "Agregadores",
+    "Acumulados (YTD)",
+    "Acumulados (MTD)",
+    "Acumulados (QTD)",
+    "Períodos Anteriores",
+    "Variações (YoY)",
+    "Variações (MoM)",
+    "Outras",
+]
+
 
 class TMDLGenerator:
     def __init__(
@@ -54,50 +66,78 @@ class TMDLGenerator:
         existing_measures: Optional[List[str]] = None,
         date_table: str = DATE_TABLE,
         date_column: str = DATE_COLUMN,
+        gen_time: bool = True,
+        measures_table_name: str = MEASURES_TABLE,
+        ai_measures: Optional[List[dict]] = None,
     ):
         self.tables = tables
         self.existing = set(existing_measures or [])
         self.date_table = date_table
         self.date_column = date_column
-        self.measure_groups = {}  # Para organizar por categoria
+        self.gen_time = gen_time
+        self.measures_table_name = measures_table_name
+        self.ai_measures = ai_measures or []
 
     # ── Public ────────────────────────────────────────────────────────
 
     def generate(self) -> str:
         """Gera o script TMDL completo com medidas organizadas."""
         measures = self._collect_measures()
-        
+
+        # Append AI-suggested measures (if not already existing)
+        for ai_m in self.ai_measures:
+            if ai_m.get("name") and ai_m["name"] not in self.existing:
+                ai_m.setdefault("format", '"#,0.00"')
+                ai_m.setdefault("annotation", None)
+                ai_m.setdefault("is_currency", False)
+                ai_m.setdefault("single_line", True)
+                ai_m.setdefault("group", "IA Sugeridas")
+                measures.append(ai_m)
+
         if not measures:
             return (
                 "// Nenhuma medida nova pôde ser gerada.\n"
                 "// Todas as medidas possíveis já existem ou não há colunas numéricas detectadas."
             )
 
-        # Organizar medidas por grupo
         grouped = self._group_measures(measures)
-        
+
         lines = ["createOrReplace", ""]
-        lines.append(f"\ttable {MEASURES_TABLE}")
+        lines.append(f"\ttable {self.measures_table_name}")
         lines.append("")
 
-        # Adicionar medidas por grupo com comentários
-        for group_name, group_measures in grouped.items():
+        # Output groups in defined order, then any remaining
+        all_group_keys = list(GROUP_ORDER)
+        for g in grouped:
+            if g not in all_group_keys:
+                all_group_keys.append(g)
+
+        for group_name in all_group_keys:
+            group_measures = grouped.get(group_name, [])
             if group_measures:
                 lines.append(f"\t\t// ── {group_name} ──")
                 for m in group_measures:
                     lines.extend(self._format_measure(m))
                 lines.append("")
 
-        # Partition boilerplate
         lines.extend(self._get_partition_lines())
         lines.append("")
-
         return "\n".join(lines)
+
+    def count_measures(self) -> dict:
+        """Returns counts for the stats display."""
+        measures = self._collect_measures()
+        grouped = self._group_measures(measures)
+        total = len(measures) + len(self.ai_measures)
+        return {
+            "total": total,
+            "by_group": {k: len(v) for k, v in grouped.items()},
+            "ai_count": len(self.ai_measures),
+        }
 
     # ── Collectors ────────────────────────────────────────────────────
 
     def _collect_measures(self) -> List[dict]:
-        """Coleta todas as medidas a serem geradas."""
         measures = []
         for table_name, info in self.tables.items():
             if info.get("is_hidden"):
@@ -105,130 +145,72 @@ class TMDLGenerator:
             for col in info.get("numeric", []):
                 col_lower = col.lower()
 
-                # Skip pure calendar columns entirely
                 if any(kw == col_lower for kw in SKIP_ENTIRELY_KEYWORDS):
                     continue
 
-                # Base measures (sempre geradas)
                 for m in self._base_measures(table_name, col):
                     if m["name"] not in self.existing:
                         measures.append(m)
 
-                # Time intelligence: skip for ID/calendar-like columns
-                skip_time = any(kw in col_lower for kw in SKIP_TIME_KEYWORDS)
-                if not skip_time:
-                    for m in self._time_measures(table_name, col):
-                        if m["name"] not in self.existing:
-                            measures.append(m)
+                if self.gen_time:
+                    skip_time = any(kw in col_lower for kw in SKIP_TIME_KEYWORDS)
+                    if not skip_time:
+                        for m in self._time_measures(table_name, col):
+                            if m["name"] not in self.existing:
+                                measures.append(m)
 
         return measures
 
     def _group_measures(self, measures: List[dict]) -> Dict[str, List[dict]]:
-        """Agrupa medidas por categoria."""
-        groups = {}
-        
+        groups: Dict[str, List[dict]] = {}
         for m in measures:
-            name = m["name"]
-            
-            # Determinar grupo baseado no nome da medida
-            if name.startswith("Total "):
-                group = "Agregadores"
-            elif name.startswith("Média "):
-                group = "Agregadores"
-            elif name.startswith("Contagem "):
-                group = "Agregadores"
-            elif name.startswith("Máximo "):
-                group = "Agregadores"
-            elif name.startswith("Mínimo "):
-                group = "Agregadores"
-            elif "YTD" in name:
-                group = "Acumulados (YTD)"
-            elif "MTD" in name:
-                group = "Acumulados (MTD)"
-            elif "QTD" in name:
-                group = "Acumulados (QTD)"
-            elif "Ano Anterior" in name:
-                group = "Períodos Anteriores"
-            elif "Mês Anterior" in name:
-                group = "Períodos Anteriores"
-            elif "MoM" in name:
-                group = "Variações (MoM)"
-            elif "YoY" in name:
-                group = "Variações (YoY)"
-            else:
-                group = "Outras"
-            
-            if group not in groups:
-                groups[group] = []
-            groups[group].append(m)
-        
+            group = m.get("group") or self._infer_group(m["name"])
+            groups.setdefault(group, []).append(m)
         return groups
+
+    def _infer_group(self, name: str) -> str:
+        if name.startswith(("Total ", "Média ", "Contagem ", "Máximo ", "Mínimo ")):
+            return "Agregadores"
+        if "YTD" in name:
+            return "Acumulados (YTD)"
+        if "MTD" in name:
+            return "Acumulados (MTD)"
+        if "QTD" in name:
+            return "Acumulados (QTD)"
+        if "Ano Anterior" in name or "Mês Anterior" in name:
+            return "Períodos Anteriores"
+        if "MoM" in name:
+            return "Variações (MoM)"
+        if "YoY" in name:
+            return "Variações (YoY)"
+        return "Outras"
 
     # ── Base measures ─────────────────────────────────────────────────
 
     def _base_measures(self, table: str, col: str) -> List[dict]:
-        """Gera medidas base (agregadores)."""
         ref = f"{table}[{col}]"
         fmt, ann, is_currency = self._fmt(col)
         return [
-            {
-                "name": f"Total {col}",
-                "expression": f"SUM({ref})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency
-            },
-            {
-                "name": f"Média {col}",
-                "expression": f"AVERAGE({ref})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency
-            },
-            {
-                "name": f"Contagem {col}",
-                "expression": f"COUNT({ref})",
-                "format": "#,0",
-                "annotation": None,
-                "is_currency": False
-            },
-            {
-                "name": f"Máximo {col}",
-                "expression": f"MAX({ref})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency
-            },
-            {
-                "name": f"Mínimo {col}",
-                "expression": f"MIN({ref})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency
-            },
+            {"name": f"Total {col}", "expression": f"SUM({ref})", "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True},
+            {"name": f"Média {col}", "expression": f"AVERAGE({ref})", "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True},
+            {"name": f"Contagem {col}", "expression": f"COUNT({ref})", "format": '"#,0"', "annotation": None, "is_currency": False, "single_line": True},
+            {"name": f"Máximo {col}", "expression": f"MAX({ref})", "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True},
+            {"name": f"Mínimo {col}", "expression": f"MIN({ref})", "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True},
         ]
 
     # ── Time-intelligence measures ────────────────────────────────────
 
     def _time_measures(self, table: str, col: str) -> List[dict]:
-        """Gera medidas de inteligência temporal."""
         dt = f"{self.date_table}[{self.date_column}]"
         fmt, ann, is_currency = self._fmt(col)
-        pct_fmt = "0.00%"
-
-        # Reference the base SUM measure by name (keeps DAX DRY)
-        base_name = f"Total {col}"
-        base_ref = f"[{base_name}]"
+        pct_fmt = '"0.00%"'
+        base_ref = f"[Total {col}]"
 
         return [
-            # ── YTD ──────────────────────────────────────────────────
             {
                 "name": f"YTD {col}",
                 "expression": f"TOTALYTD({base_ref}, {dt})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": True
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True,
             },
             {
                 "name": f"YTD {col} Ano Anterior",
@@ -238,30 +220,18 @@ class TMDLGenerator:
                     f"\t\t\t\tSAMEPERIODLASTYEAR({dt})\n"
                     f"\t\t\t)"
                 ),
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": False
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
-            # ── MTD ──────────────────────────────────────────────────
             {
                 "name": f"MTD {col}",
                 "expression": f"TOTALMTD({base_ref}, {dt})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": True
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True,
             },
-            # ── QTD ──────────────────────────────────────────────────
             {
                 "name": f"QTD {col}",
                 "expression": f"TOTALQTD({base_ref}, {dt})",
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": True
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": True,
             },
-            # ── Período anterior ─────────────────────────────────────
             {
                 "name": f"{col} Mês Anterior",
                 "expression": (
@@ -270,10 +240,7 @@ class TMDLGenerator:
                     f"\t\t\t\tDATEADD({dt}, -1, MONTH)\n"
                     f"\t\t\t)"
                 ),
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": False
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"{col} Ano Anterior",
@@ -283,12 +250,8 @@ class TMDLGenerator:
                     f"\t\t\t\tSAMEPERIODLASTYEAR({dt})\n"
                     f"\t\t\t)"
                 ),
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": False
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
-            # ── Variações YoY ────────────────────────────────────────
             {
                 "name": f"Var YoY {col}",
                 "expression": (
@@ -297,10 +260,7 @@ class TMDLGenerator:
                     f"\t\t\tRETURN\n"
                     f"\t\t\t\tIF(NOT ISBLANK(_anterior), _atual - _anterior)"
                 ),
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": False
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"% YoY {col}",
@@ -313,12 +273,8 @@ class TMDLGenerator:
                     f"\t\t\t\t\tDIVIDE(_atual - _anterior, _anterior)\n"
                     f"\t\t\t\t)"
                 ),
-                "format": pct_fmt,
-                "annotation": None,
-                "is_currency": False,
-                "single_line": False
+                "format": pct_fmt, "annotation": None, "is_currency": False, "single_line": False,
             },
-            # ── Variações MoM ────────────────────────────────────────
             {
                 "name": f"Var MoM {col}",
                 "expression": (
@@ -327,10 +283,7 @@ class TMDLGenerator:
                     f"\t\t\tRETURN\n"
                     f"\t\t\t\tIF(NOT ISBLANK(_anterior), _atual - _anterior)"
                 ),
-                "format": fmt,
-                "annotation": ann,
-                "is_currency": is_currency,
-                "single_line": False
+                "format": fmt, "annotation": ann, "is_currency": is_currency, "single_line": False,
             },
             {
                 "name": f"% MoM {col}",
@@ -343,17 +296,13 @@ class TMDLGenerator:
                     f"\t\t\t\t\tDIVIDE(_atual - _anterior, _anterior)\n"
                     f"\t\t\t\t)"
                 ),
-                "format": pct_fmt,
-                "annotation": None,
-                "is_currency": False,
-                "single_line": False
+                "format": pct_fmt, "annotation": None, "is_currency": False, "single_line": False,
             },
         ]
 
     # ── Formatting ────────────────────────────────────────────────────
 
     def _format_measure(self, measure: dict) -> List[str]:
-        """Formata uma medida para TMDL com indentação correta."""
         lines = []
         name = measure["name"]
         expr = measure["expression"]
@@ -361,45 +310,25 @@ class TMDLGenerator:
         ann = measure.get("annotation")
         single_line = measure.get("single_line", False)
 
-        # Determinar se é uma medida de porcentagem
-        is_pct = fmt == "0.00%"
-        
-        # Formatar a expressão
-        if single_line:
-            # Expressão em uma única linha
-            if "YTD" in name and "Ano Anterior" not in name:
-                lines.append(f"\t\tmeasure '{name}' = {expr}")
-            elif "MTD" in name:
-                lines.append(f"\t\tmeasure '{name}' = {expr}")
-            elif "QTD" in name:
-                lines.append(f"\t\tmeasure '{name}' = {expr}")
-            else:
-                lines.append(f"\t\tmeasure '{name}' = {expr}")
+        expr_lines = expr.split('\n')
+        if single_line or len(expr_lines) == 1:
+            lines.append(f"\t\tmeasure '{name}' = {expr}")
         else:
-            # Expressão em múltiplas linhas - manter indentação
-            expr_lines = expr.split('\n')
-            if len(expr_lines) == 1:
-                lines.append(f"\t\tmeasure '{name}' = {expr}")
-            else:
-                lines.append(f"\t\tmeasure '{name}' = {expr_lines[0]}")
-                for line in expr_lines[1:]:
-                    lines.append(f"\t\t\t{line}")
+            lines.append(f"\t\tmeasure '{name}' = {expr_lines[0]}")
+            for line in expr_lines[1:]:
+                lines.append(f"\t\t\t{line}")
 
-        # Adicionar formatString
         if fmt:
-            if is_pct:
-                lines.append(f"\t\t\tformatString: {fmt}")
-            else:
-                lines.append(f"\t\t\tformatString: {fmt}")
-        
-        # Adicionar annotation
+            # Strip outer quotes if already quoted, then re-quote consistently
+            clean_fmt = fmt.strip('"')
+            lines.append(f'\t\t\tformatString: "{clean_fmt}"')
+
         if ann:
             lines.append(f"\t\t\tannotation {ann}")
-        
+
         return lines
 
     def _fmt(self, col: str) -> Tuple[str, Optional[str], bool]:
-        """Determina o formato e annotation para uma coluna."""
         is_currency = any(kw in col.lower() for kw in CURRENCY_KEYWORDS)
         if is_currency:
             return (
@@ -410,9 +339,8 @@ class TMDLGenerator:
         return '"#,0.00"', None, False
 
     def _get_partition_lines(self) -> List[str]:
-        """Gera as linhas da partition."""
         lines = [
-            f"\t\tpartition {MEASURES_TABLE} = m",
+            f"\t\tpartition {self.measures_table_name} = m",
             "\t\t\tmode: import",
             "\t\t\tsource ="
         ]

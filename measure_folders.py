@@ -1,42 +1,48 @@
 """
 measure_folders.py
 Configuração de pastas para organização das medidas no Power BI.
+Usado como referência para documentação e geração de grupos.
 """
 
 MEASURE_FOLDERS = {
     "Agregadores": {
         "icon": "📊",
         "description": "Medidas de agregação básica",
-        "measures": ["Total", "Média", "Contagem", "Máximo", "Mínimo"]
+        "prefixes": ["Total", "Média", "Contagem", "Máximo", "Mínimo"],
     },
     "Acumulados (YTD)": {
         "icon": "📈",
-        "description": "Acumulado do ano",
-        "measures": ["YTD", "YTD Ano Anterior"]
+        "description": "Acumulado do ano (Year-to-Date)",
+        "prefixes": ["YTD"],
     },
     "Acumulados (MTD)": {
         "icon": "📅",
-        "description": "Acumulado do mês",
-        "measures": ["MTD"]
+        "description": "Acumulado do mês (Month-to-Date)",
+        "prefixes": ["MTD"],
     },
     "Acumulados (QTD)": {
         "icon": "📆",
-        "description": "Acumulado do trimestre",
-        "measures": ["QTD"]
+        "description": "Acumulado do trimestre (Quarter-to-Date)",
+        "prefixes": ["QTD"],
     },
     "Períodos Anteriores": {
         "icon": "⏪",
         "description": "Comparações com períodos anteriores",
-        "measures": ["Mês Anterior", "Ano Anterior"]
+        "suffixes": ["Mês Anterior", "Ano Anterior"],
     },
     "Variações (YoY)": {
         "icon": "📉",
-        "description": "Variação ano a ano",
-        "measures": ["Var YoY", "% YoY"]
+        "description": "Variação ano a ano (Year-over-Year)",
+        "prefixes": ["Var YoY", "% YoY"],
     },
     "Variações (MoM)": {
         "icon": "📉",
-        "description": "Variação mês a mês",
-        "measures": ["Var MoM", "% MoM"]
-    }
+        "description": "Variação mês a mês (Month-over-Month)",
+        "prefixes": ["Var MoM", "% MoM"],
+    },
+    "IA Sugeridas": {
+        "icon": "🤖",
+        "description": "Medidas contextuais sugeridas pela IA",
+        "prefixes": [],
+    },
 }
